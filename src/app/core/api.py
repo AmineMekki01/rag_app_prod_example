@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, UploadFile, File
 from fastapi import HTTPException
 from src.app.core.logs import logger
@@ -6,8 +7,10 @@ from starlette import status
 from starlette.requests import Request
 from qdrant_client import QdrantClient
 
-from src.app.scripts.ingest import extract_text_from_pdf, extract_text_from_txt, extract_text_from_docx, populate_qdrant
+from src.app.scripts.ingest import extract_text_from_file
 from src.app.settings import settings
+from src.app.scripts.ingest import text_chunking_and_qdrant_upload
+from typing import List
 
 client = QdrantClient(host=settings.QDRANT_HOST, port=settings.QDRANT_PORT)
 router = APIRouter(tags=['Core Endpoints'])
@@ -21,37 +24,41 @@ async def healthCheck(request: Request) -> dict:
 
 
 @router.post("/v1/upload-document")
-async def upload_document(file: UploadFile = File(...)):
-    contents = await file.read()
-    file_location = f"data/{file.filename}"
-    with open(file_location, "wb") as f:
-        f.write(contents)
+async def upload_document(files: List[UploadFile] = File(...)):
+    file_names = []
+    print(files)
+    for file in files:
+        contents = await file.read()
+        file_location = f"data/{file.filename}"
+        with open(file_location, "wb") as f:
+            f.write(contents)
 
-    if file.filename.endswith('.pdf'):
-        text = extract_text_from_pdf(file_location)
+        file_metadata = {
+            "file_name": file.filename,
+            "file_size": os.path.getsize(file_location),
+            "file_extension": file.filename.split(".")[-1],
+            "file_type": file.filename.split(".")[-1].replace(".", ""),
+        }
+        file_names.append(file.filename)
+        text = extract_text_from_file(file_location)
 
-    elif file.filename.endswith('.txt'):
-        text = extract_text_from_txt(file_location)
+        if text is None:
+            logger.error(
+                f"File upload failed for {file.filename}, unsupported file type or content could not be extracted.")
 
-    elif file.filename.endswith('.docx'):
-        text = extract_text_from_docx(file_location)
-    else:
-        text = None
+            raise HTTPException(
+                status_code=422, detail="Unsupported file type or content could not be extracted.")
 
-    if text is None:
-        logger.error(
-            f"File upload failed for {file.filename}, unsupported file type or content could not be extracted.")
+        text_chunking_and_qdrant_upload(text, file_metadata)
 
-        raise HTTPException(
-            status_code=422, detail="Unsupported file type or content could not be extracted.")
-
-    if text:
-        populate_qdrant(client, [text], [file.filename], [
-                        file.filename], settings)
-
-    return {"text": text}
+    return {'files_names': file_names}
 
 
 @router.get("/v1/documents")
 async def read_documents():
     return {"documents": "List of documents"}
+
+
+@router.get("/")
+async def root():
+    return {"message": "Hello World"}
