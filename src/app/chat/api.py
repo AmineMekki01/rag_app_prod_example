@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 import openai
 from starlette.responses import StreamingResponse
@@ -7,23 +7,23 @@ from src.app.chat.exceptions import OpenAIException
 from src.app.chat.models import BaseMessage, Message
 from src.app.chat.services import OpenAIService
 from src.app.db import messages_queries
-
+from src.app.core.logs import logger
 
 router = APIRouter(tags=["Chat Endpoints"])
 
 
 @router.get("/v1/messages")
 async def get_messages() -> list[Message]:
-    # a bit messy as we might want to move this to a service
     return [Message(**message) for message in messages_queries.select_all()]
 
 
 @router.post("/v1/completion")
-async def completion_create(input_message: BaseMessage) -> Message:
+async def completion_create(input_message: BaseMessage, context: str) -> Message:
+    logger.info(
+        f"Received request with input_message: {input_message} and context: {context}")
     try:
-        answer = await OpenAIService.chat_completion_without_streaming(input_message=input_message)
+        answer = await OpenAIService.chat_completion_without_streaming(input_message=input_message, context=context)
 
-        # Insert the message into the database
         messages_queries.insert(
             model=input_message.model,
             role=answer.role,
@@ -32,8 +32,12 @@ async def completion_create(input_message: BaseMessage) -> Message:
         )
 
         return answer
-    except openai.OpenAIError:
+    except openai.OpenAIError as e:
+        logger.error(f"OpenAI API Error: {e}")
         raise OpenAIException
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/v1/completion-stream")

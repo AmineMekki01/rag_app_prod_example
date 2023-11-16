@@ -4,18 +4,19 @@ from src.app.chat.constants import ChatRolesEnum, ModelsEnum
 from src.app.core.models import TimestampAbstractModel
 from src.app.chat.exceptions import OpenAIFailedProcessingException
 
+
 class BaseMessage(BaseModel):
-    model : ModelsEnum = Field(default = ModelsEnum.GPT4.value)
-    message : str
-    
-    
+    model: ModelsEnum = Field(default=ModelsEnum.GPT4.value)
+    message: str
+
+
 class Message(TimestampAbstractModel, BaseMessage):
-    role : ChatRolesEnum 
-    
+    role: ChatRolesEnum
+
+
 class Message(BaseMessage):
-    role : ChatRolesEnum
-    
-    
+    role: ChatRolesEnum
+
 
 class Chunk(BaseModel):
     id: str

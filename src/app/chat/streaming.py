@@ -30,7 +30,7 @@ async def stream_generator(subscription):
 
 
 def format_to_event_stream(data: str) -> str:
-    """ We format the event to a format more in line with the standard SSE format. """
+    """ Formats the data to be sent as a server-sent event. """
     return f"event: message\ndata: {data}\n\n"
 
 

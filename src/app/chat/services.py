@@ -1,7 +1,6 @@
 import openai
 from openai import ChatCompletion
 from starlette.responses import StreamingResponse
-
 from src.app.chat.constants import ChatRolesEnum
 from src.app.chat.models import BaseMessage, Message
 from src.app.core.logs import logger
@@ -19,9 +18,9 @@ class OpenAIService:
             model=input_message.model,
             api_key=settings.OPENAI_API_KEY,
             messages=[{"role": ChatRolesEnum.USER.value,
-                       "content": input_message.message}],
+                       "content": input_message.message}]
         )
-        logger.info(f"Got the following response: {completion}")
+
         return Message(
             model=input_message.model,
             message=cls.extract_response_from_completion(completion),
@@ -45,10 +44,12 @@ class OpenAIService:
 
     @classmethod
     async def qa_without_stream(cls, input_message: BaseMessage) -> Message:
+        print("I am in qa_without_stream")
         try:
-            augmented_message: BaseMessage = process_retrieval(
+            augmented_message = process_retrieval(
                 message=input_message)
             return await cls.chat_completion_without_streaming(input_message=augmented_message)
+
         except RetrievalNoDocumentsFoundException:
             return Message(model=input_message.model, message=NO_DOCUMENTS_FOUND, role=ChatRolesEnum.ASSISTANT.value)
 
