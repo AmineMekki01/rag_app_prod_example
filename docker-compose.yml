@@ -1,23 +1,23 @@
 version: '3.8'
 services:
 
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    depends_on:
-      database:
-        condition: service_healthy
-    restart: always
-    deploy:
-      replicas: 1
-    ports:
-      - "8000:8000"
-    volumes:
-      - .:/code/
-    command: ["bash", "-c","dbmate up && gunicorn -c src/app/settings/gunicorn.conf.py main:app"]
-    env_file:
-      - .env
+  # api:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   depends_on:
+  #     database:
+  #       condition: service_healthy
+  #   restart: always
+  #   deploy:
+  #     replicas: 1
+  #   ports:
+  #     - "8000:8000"
+  #   volumes:
+  #     - .:/code/
+  #   command: ["bash", "-c","dbmate up && gunicorn -c src/app/settings/gunicorn.conf.py main:app"]
+  #   env_file:
+  #     - .env
   qdrant:
     restart: always
     image: qdrant/qdrant:latest
