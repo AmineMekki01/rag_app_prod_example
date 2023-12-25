@@ -145,13 +145,17 @@ python-dotenv==1.0.0
     # via pydantic-settings
 python-multipart==0.0.6
     # via brag (pyproject.toml)
-
+# pywin32==306
+    # via portalocker
 qdrant-client[fastembed]==1.6.4
     # via brag (pyproject.toml)
+regex==2023.10.3
+    # via tiktoken
 requests==2.31.0
     # via
     #   fastembed
     #   openai
+    #   tiktoken
 ruff==0.1.3
     # via brag (pyproject.toml)
 sentry-sdk==1.34.0
@@ -167,6 +171,8 @@ starlette==0.27.0
     # via fastapi
 sympy==1.12
     # via onnxruntime
+tiktoken==0.5.1
+    # via brag (pyproject.toml)
 tokenizers==0.13.3
     # via fastembed
 tqdm==4.66.1
