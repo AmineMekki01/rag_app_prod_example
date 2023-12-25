@@ -14,7 +14,7 @@ class Settings(BaseSettings):
         env="GENERATION_TIMEOUT_SEC", default=120)
 
     QDRANT_HOST: str = Field(env="QDRANT_HOST", default="localhost")
-    QDRANT_PORT: int = Field(env="QDRANT_PORT", default=6333)
+    QDRANT_PORT: int = Field(env="QDRANT_PORT", default=9999)
     QDRANT_COLLECTION_NAME: str = Field(
         env="QDRANT_COLLECTION_NAME", default="demo")
 

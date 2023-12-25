@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings
 from src.app.core.constants import DEFAULT_NUMBER_OF_WORKERS_ON_LOCAL
 from src.app.settings import settings
 
-THREADS_PER_CORE = 2
+THREADS_PER_CORE = 1
 
 
 def calculate_workers():

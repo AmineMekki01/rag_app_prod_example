@@ -3,19 +3,37 @@ from pydantic import BaseModel, Field
 from src.app.chat.constants import ChatRolesEnum, ModelsEnum
 from src.app.core.models import TimestampAbstractModel
 from src.app.chat.exceptions import OpenAIFailedProcessingException
+from typing import Optional
+from datetime import datetime
 
 
 class BaseMessage(BaseModel):
+    id: str = Field(default="")
+    chat_id: str = Field(default="")
     model: ModelsEnum = Field(default=ModelsEnum.GPT4.value)
-    message: str
+    userId: Optional[str] = None
+    agent_role: str = Field(default=ChatRolesEnum.ASSISTANT.value)
+    user_message: str = Field(default="")
+    answer: str = Field(default="")
+    augmented_message: str = Field(default="")
 
 
 class Message(TimestampAbstractModel, BaseMessage):
-    role: ChatRolesEnum
+    role: Optional[ChatRolesEnum] = None
 
 
 class Message(BaseMessage):
-    role: ChatRolesEnum
+    role: Optional[ChatRolesEnum] = None
+
+
+class ChatSummary(BaseModel):
+    id: str
+    user_id: str
+    title: str
+    model: str
+    agent_role: str
+    created_at: datetime
+    updated_at: datetime
 
 
 class Chunk(BaseModel):

@@ -1,7 +1,10 @@
 import os
+from typing import Dict, List
 from PyPDF2 import PdfReader
 from qdrant_client import QdrantClient
 from docx import Document
+import tiktoken
+import re
 import uuid
 from src.app.settings import settings
 from src.app.core.logs import logger
@@ -41,18 +44,58 @@ def extract_text_from_docx(file_path):
         return None
 
 
-def chunk_text(text, chunk_size=1000):
+def create_chunks(text: str, max_tokens: int = 500) -> list[str]:
+    """
+        Split the text into chunks of `max_tokens` length.
+
+    params:
+    -------
+        text: str
+            The text to be split into chunks.
+        max_tokens: int
+            The maximum number of tokens per chunk.
+    returns:
+    --------
+        chunks: list[str]
+            A list of chunks of text.
+    """
+    encoding = tiktoken.get_encoding("cl100k_base")
+    sentences = re.split('(?<=[.!?]) +', text)
     chunks = []
-    for i in range(0, len(text), chunk_size):
-        chunks.append(text[i:i + chunk_size])
+    current_chunk = ""
+    current_count = 0
+
+    for sentence in sentences:
+        tokens = encoding.encode(sentence)
+        token_count = len(tokens)
+
+        if current_count + token_count <= max_tokens:
+            current_chunk += " " + sentence
+            current_count += token_count
+        else:
+            chunks.append(current_chunk)
+            current_chunk = sentence
+            current_count = token_count
+
+    chunks.append(current_chunk)
     return chunks
 
 
-def extract_text_from_file(file_path):
+def extract_text_from_file(file_path: str) -> str:
     """
-    Extract text from the file.
+    Extract text from files of type PDF, TXT, and DOCX.
+
+    params:
+    -------
+        file_path: str
+            The path to the file.
+
+    returns:    
+    --------
+        text: str
+            The extracted text.
     """
-    print(file_path)
+
     if file_path.endswith('.pdf'):
         return extract_text_from_pdf(file_path)
     elif file_path.endswith('.txt'):
@@ -63,10 +106,21 @@ def extract_text_from_file(file_path):
         return None
 
 
-def extract_metadata(file_path):
+def extract_metadata(file_path: str) -> Dict[str, str]:
     """
     Extract all possible metadata from the file,
     such as file name, size, extension, etc.
+
+    params: 
+    -------
+        file_path: str
+            The path to the file.
+
+    returns:    
+    --------
+        metadata: dict
+            A dictionary containing all the metadata.   
+
     """
     try:
         return {
@@ -80,10 +134,27 @@ def extract_metadata(file_path):
         return {}
 
 
-def populate_qdrant(client, documents, metadata, ids, settings):
+def populate_qdrant(client: QdrantClient, documents: List[str], metadata: List[Dict],  ids: List[str], userId: str):
+    """
+    Populate Qdrant with the provided documents and metadata.
+
+    params:
+    -------
+        client: QdrantClient
+            The Qdrant client.
+        documents: list[str]
+            A list of documents to be indexed.
+        metadata: list[dict]
+            A list of dictionaries containing the metadata for each document.
+        ids: list[str]
+            A list of ids for each document.
+        userId: str
+            The user id of the user who uploaded the file.
+
+    """
     try:
         client.add(
-            collection_name=settings.QDRANT_COLLECTION_NAME,
+            collection_name=userId,
             documents=documents,
             metadata=metadata,
             ids=ids,
@@ -93,11 +164,20 @@ def populate_qdrant(client, documents, metadata, ids, settings):
         print(f"An error occurred while populating Qdrant: {e}")
 
 
-def text_chunking_and_qdrant_upload(text: str, file_metadata: dict):
+def text_chunking_and_qdrant_upload(text: str, file_metadata: Dict, userId: str):
     """
+    Chunk the text into smaller chunks and upload them to Qdrant.
+
+    params: 
+    -------
+        text: str
+            The text to be chunked.
+        file_metadata: dict
+            A dictionary containing the metadata of the file.
+        userId: str
+            The user id of the user who uploaded the file.
 
     """
-
     client = QdrantClient(host=settings.QDRANT_HOST, port=settings.QDRANT_PORT)
 
     logger.info(
@@ -108,7 +188,7 @@ def text_chunking_and_qdrant_upload(text: str, file_metadata: dict):
     ids = []
 
     if text:
-        chunks = chunk_text(text)
+        chunks = create_chunks(text)
 
         for chunk in chunks:
             doc_id = str(uuid.uuid4())
@@ -130,64 +210,11 @@ def text_chunking_and_qdrant_upload(text: str, file_metadata: dict):
         )
 
     else:
-        print("No text was provided.")
         logger.info("No text was provided.")
 
     if documents and metadata and ids:
         logger.info("Started populating Qdrant..")
-        populate_qdrant(client, documents, metadata, ids, settings)
+        populate_qdrant(client, documents, metadata, ids, userId)
         logger.info("Qdrant was populated.")
     else:
-        print("No documents, metadata, or ids were provided.")
         logger.info("No documents, metadata, or ids were provided.")
-
-
-# if __name__ == "__main__":
-#     client = QdrantClient(host=settings.QDRANT_HOST, port=settings.QDRANT_PORT)
-
-#     documents = []
-#     metadata = []
-#     ids = []
-
-#     documents_directory = "./data"
-
-#     file_to_id_mapping = {}
-
-#     for file_name in os.listdir(documents_directory):
-#         file_path = os.path.join(
-#             documents_directory, file_name)
-
-#         text = None
-
-#         if file_name.endswith('.pdf'):
-#             text = extract_text_from_pdf(file_path)
-#         elif file_name.endswith('.txt'):
-#             text = extract_text_from_txt(file_path)
-#         elif file_name.endswith('.docx'):
-#             text = extract_text_from_docx(file_path)
-
-#         # extract metadata
-#         file_metadata = extract_metadata(file_path)
-
-#         # chunk the text into smaller chunks
-#         if text:
-#             chunks = chunk_text(text)
-
-#             for chunk in chunks:
-#                 doc_id = str(uuid.uuid4())
-#                 file_to_id_mapping[file_name] = doc_id
-#                 documents.append(chunk)
-#                 metadata.append(
-#                     {
-#                         "source": file_name,
-#                         "id": doc_id,
-#                         "chunk": chunk,
-#                         "chunk_length": len(chunk),
-#                         "file_path": file_path,
-#                         "file_metadata": file_metadata
-#                     }
-#                 )
-#                 ids.append(doc_id)
-
-#     # if documents and metadata and ids:
-#     #     populate_qdrant(client, documents, metadata, ids, settings)

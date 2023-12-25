@@ -11,15 +11,10 @@ from src.app.settings import settings
 
 
 async def stream_generator(subscription):
-    """In the future if we are paranoid about performance we can pre-allocate a buffer and use it instead of f-string
-    should save a cycle or two in the processor or be a fun exercise but totally not worth the effort or complexity
-    currently (in the future too).
-    """
     async with async_timeout.timeout(settings.GENERATION_TIMEOUT_SEC):
         try:
             complete_response: str = ""
             async for chunk in subscription:
-                # f-string is faster than concatenation so we use it here
                 complete_response = f"{complete_response}{Chunk.get_chunk_delta_content(chunk=chunk)}"
                 yield format_to_event_stream(post_processing(chunk))
             message: Message = Message(
@@ -30,7 +25,6 @@ async def stream_generator(subscription):
 
 
 def format_to_event_stream(data: str) -> str:
-    """ Formats the data to be sent as a server-sent event. """
     return f"event: message\ndata: {data}\n\n"
 
 

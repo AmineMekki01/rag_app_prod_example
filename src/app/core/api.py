@@ -1,6 +1,7 @@
 import os
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File, Form
 from fastapi import HTTPException
+
 from src.app.core.logs import logger
 
 from starlette import status
@@ -24,11 +25,11 @@ async def healthCheck(request: Request) -> dict:
 
 
 @router.post("/v1/upload-document")
-async def upload_document(files: List[UploadFile] = File(...)):
-    file_names = []
-    print(files)
-    for file in files:
+async def upload_document(files: List[UploadFile] = File(...), userId: str = Form(...)):
+    file_names = []    
+    for file in files:        
         contents = await file.read()
+        print(file)
         file_location = f"data/{file.filename}"
         with open(file_location, "wb") as f:
             f.write(contents)
@@ -49,7 +50,7 @@ async def upload_document(files: List[UploadFile] = File(...)):
             raise HTTPException(
                 status_code=422, detail="Unsupported file type or content could not be extracted.")
 
-        text_chunking_and_qdrant_upload(text, file_metadata)
+        text_chunking_and_qdrant_upload(text, file_metadata, userId)
 
     return {'files_names': file_names}
 
